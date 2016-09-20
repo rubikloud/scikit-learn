@@ -252,6 +252,7 @@ def test_xor():
 def test_iris():
     # Check consistency on dataset iris.
     for (name, Tree), criterion in product(CLF_TREES.items(), CLF_CRITERIONS):
+        # Can't handle multiple outputs with lift criterion
         clf = Tree(criterion=criterion, random_state=0)
         clf.fit(iris.data, iris.target)
         score = accuracy_score(clf.predict(iris.data), iris.target)
@@ -1148,6 +1149,7 @@ def check_sparse_criterion(tree, dataset):
     # Check various criterion
     CRITERIONS = REG_CRITERIONS if tree in REG_TREES else CLF_CRITERIONS
     for criterion in CRITERIONS:
+        # Can't handle multiple outputs with lift criterion
         d = TreeEstimator(random_state=0, max_depth=3,
                           criterion=criterion).fit(X, y)
         s = TreeEstimator(random_state=0, max_depth=3,
@@ -1312,7 +1314,7 @@ def check_presort_sparse(est, X, y):
     assert_raises(ValueError, est.fit, X, y )
 
 def test_presort_sparse():
-    ests = (DecisionTreeClassifier(presort=True), 
+    ests = (DecisionTreeClassifier(presort=True),
             DecisionTreeRegressor(presort=True))
     sparse_matrices = (csr_matrix, csc_matrix, coo_matrix)
 
@@ -1324,3 +1326,103 @@ def test_presort_sparse():
 
     for est, sparse_matrix in product(ests, sparse_matrices):
         yield check_presort_sparse, est, sparse_matrix(X), y
+
+def test_classification_lift_toy():
+    # toy sample
+    X = [[10]] * 8 + [[20]] * 8
+    y = [1, 1, 1, 0,  # treatment, x=10
+         2, 2, 2, 3,  # control, x=10
+         1, 1, 0, 0,  # treatment, x=20
+         3, 3, 2, 2,] # control, x=20
+    T = [[10], [20]]
+    true_result = [[0.125, 0.375, 0.375, 0.125],
+                   [0.25, 0.25, 0.25, 0.25]]
+
+    # Check classification on a toy dataset.
+    clf = DecisionTreeClassifier(criterion='lift', random_state=0)
+    clf.fit(X, y)
+    result = clf.predict_proba(T)
+    assert_array_equal(result, true_result,
+            "Failed with prediction: {}".format(result))
+
+
+def test_classification_lift_toy2():
+    # toy sample
+    X = [[10, 0]] * 8 + [[20, 0]] * 8
+    y = [1, 1, 1, 0,  # treatment, x=10
+         2, 2, 2, 3,  # control, x=10
+         1, 1, 0, 0,  # treatment, x=20
+         3, 3, 2, 2,] # control, x=20
+    T = [[10, 0], [20, 0]]
+    true_result = [[0.125, 0.375, 0.375, 0.125],
+                   [0.25, 0.25, 0.25, 0.25]]
+
+    # Check classification on a toy dataset.
+    clf = DecisionTreeClassifier(criterion='lift', random_state=0)
+    clf.fit(X, y)
+    result = clf.predict_proba(T)
+    assert_array_equal(result, true_result,
+            "Failed with prediction: {}".format(result))
+
+
+def test_classification_lift_toy3():
+    # toy sample
+    X = ([[-1, -1]] * 10 +
+         [[-1,  1]] * 10 +
+         [[ 1, -1]] * 10 +
+         [[ 1,  1]] * 10)
+    y = [1, 1, 1, 1, 0,  # (-1, -1) treatment = 0.8
+         3, 3, 2, 2, 2,  # (-1, -1) control = 0.4
+         1, 1, 1, 1, 1,  # (-1,  1) treatment = 1.0
+         3, 3, 2, 2, 2,  # (-1,  1) control = 0.4
+         1, 0, 0, 0, 0,  # ( 1, -1) treatment = 0.2
+         3, 3, 3, 2, 2,  # ( 1, -1) control = 0.6
+         1, 1, 1, 0, 0,  # ( 1,  1) treatment = 0.6
+         3, 3, 3, 2, 2,] # ( 1,  1) control = 0.6
+
+    T = [[-1, -1], [-1, 1], [1, -1], [1, 1]]
+    true_result = [[0.1, 0.4, 0.3, 0.2],
+                   [0.0, 0.5, 0.3, 0.2],
+                   [0.4, 0.1, 0.2, 0.3],
+                   [0.2, 0.3, 0.2, 0.3]]
+
+    # Check classification on a toy dataset.
+    clf = DecisionTreeClassifier(criterion='lift', random_state=0)
+    clf.fit(X, y)
+
+    result = clf.predict_proba(T)
+    assert_array_equal(result, true_result,
+                       "Failed with prediction: {}".format(result))
+
+
+def test_classification_lift_toy4():
+    random_state = check_random_state(0)
+
+    # toy sample
+    X = ([[random_state.rand() * 10 +  10, 1]] * 10 +
+         [[random_state.rand() * 10 -  10, 1]] * 10 +
+         [[random_state.rand() * 10 + 100, 1]] * 10 +
+         [[random_state.rand() * 10 - 100, 1]] * 10)
+    y = [1, 1, 1, 1, 0,  # (  10, 1) treatment = 0.8
+         3, 3, 2, 2, 2,  # (  10, 1) control = 0.4
+         1, 1, 1, 1, 1,  # ( -10, 1) treatment = 1.0
+         3, 3, 2, 2, 2,  # ( -10, 1) control = 0.4
+         1, 0, 0, 0, 0,  # ( 100, 1) treatment = 0.2
+         3, 3, 3, 2, 2,  # ( 100, 1) control = 0.6
+         1, 1, 1, 0, 0,  # (-100, 1) treatment = 0.6
+         3, 3, 3, 2, 2,] # (-100, 1) control = 0.6
+
+    T = [[10, 1], [-10, 1], [100, 1], [-100, 1]]
+    true_result = [[0.1, 0.4, 0.3, 0.2],
+                   [0.0, 0.5, 0.3, 0.2],
+                   [0.4, 0.1, 0.2, 0.3],
+                   [0.2, 0.3, 0.2, 0.3]]
+
+    # Check classification on a toy dataset.
+    clf = DecisionTreeClassifier(criterion='lift', random_state=0)
+    clf.fit(X, y)
+
+    result = clf.predict_proba(T)
+    assert_array_equal(result, true_result,
+                       "Failed with prediction: {}".format(result))
+

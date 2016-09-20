@@ -28,6 +28,8 @@ from ._utils cimport log
 from ._utils cimport safe_realloc
 from ._utils cimport sizet_ptr_to_ndarray
 
+cdef double INFINITY = np.inf
+
 cdef class Criterion:
     """Interface for impurity criteria.
 
@@ -670,6 +672,78 @@ cdef class Gini(ClassificationCriterion):
         impurity_right[0] = gini_right / self.n_outputs
 
 
+cdef class Lift(Entropy):
+    """ Customized lift splitting criterion based on Radcliffe & Surry's work.
+    Keep the same impurity measure as Entropy, but modify the actual spliting
+    criteria (proxy_impurity_improvement) at each decision step.
+    The `node_impurity, children_impurity, impurity_improvement` are used to to
+    determine the order of expansion of nodes (for Best) but we expect just to
+    use Depth-First (full expansion of tree), which shouldn't require it
+    (set `max_leaf_nodes=0`).
+    BKENG: Might need to implement `node_impurity()` to return zero if we don't
+    have ... maybe no needed, just return np.inf from proxy improvement.
+    Criteria:
+    Criteria = ((n - 4)(U_R - U_L)^2) / (C_{44} \cdot SSE)
+    C_{44} = 1/N_{TR} + 1/N_{TL} + 1/N_{CR} + 1/N_{CL}
+    SSE = \sum_{i\in \{T,C\}} \sum_{j \in \{L,R\}} N_{ij} p_{ij} (1 - p_{ij})
+    See: "Real-World Uplift Modelling with Significance-Based Uplift Trees", Radcliffe, Surry
+    """
+    cdef double proxy_impurity_improvement(self) nogil:
+        """Compute a proxy of the impurity reduction
+        This is the main method in `_splitter.pyx` that actually determines the
+        best split.
+        Assume we have 4 classes of variables labeled as:
+         * Treatment_0 = "0"
+         * Treatment_1 = "1"
+         * Control_0 = "2"
+         * Control_1 = "3"
+        """
+        cdef SIZE_t* n_classes = self.n_classes
+        cdef double* sum_left = self.sum_left
+        cdef double* sum_right = self.sum_right
+        cdef double n_tl = 0.0
+        cdef double n_cl = 0.0
+        cdef double n_tr = 0.0
+        cdef double n_cr = 0.0
+        cdef double n = 0.0
+        cdef double p_tl = 0.0
+        cdef double p_cl = 0.0
+        cdef double p_tr = 0.0
+        cdef double p_cr = 0.0
+        cdef double u_l = 0.0
+        cdef double u_r = 0.0
+        cdef double C_44 = 0.0
+        cdef double SSE = 0.0
+
+        # Assume 1 output, 4 classes (labeled 0,1,2,3)
+        # t = treatment, c = control
+        # l = lhs, r = rhs
+        n_tl = sum_left[0] + sum_left[1]
+        n_cl = sum_left[2] + sum_left[3]
+        n_tr = sum_right[0] + sum_right[1]
+        n_cr = sum_right[2] + sum_right[3]
+
+        # Early exit: no split unless we have at least some people in each group
+        if n_tl <= 0.0 or n_cl <= 0.0 or n_tr <= 0.0 or n_cr <= 0.0:
+            return -INFINITY
+
+        p_tl = sum_left[1] / n_tl
+        p_cl = sum_left[3] / n_cl
+        p_tr = sum_right[1] / n_tr
+        p_cr = sum_right[3] / n_cr
+
+        C_44 = (1.0 / n_tl + 1.0 / n_cl + 1.0 / n_tr + 1.0 / n_cr)
+        SSE = (n_tl * p_tl * (1.0 - p_tl) +
+               n_cl * p_cl * (1.0 - p_cl) +
+               n_tr * p_tr * (1.0 - p_tr) +
+               n_cr * p_cr * (1.0 - p_cr))
+        n = n_tl + n_cl + n_tr + n_cr
+        u_l = p_tl - p_cl
+        u_r = p_tr - p_cr
+
+        return (n - 4.0) * ((u_l - u_r) ** 2) / C_44 / SSE
+
+
 cdef class RegressionCriterion(Criterion):
     """Abstract regression criterion.
 
@@ -1021,4 +1095,4 @@ cdef class FriedmanMSE(MSE):
 
         return (diff * diff / (self.weighted_n_left * self.weighted_n_right * 
                                self.weighted_n_node_samples))
-                               
+

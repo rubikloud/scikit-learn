@@ -55,7 +55,7 @@ __all__ = ["DecisionTreeClassifier",
 DTYPE = _tree.DTYPE
 DOUBLE = _tree.DOUBLE
 
-CRITERIA_CLF = {"gini": _criterion.Gini, "entropy": _criterion.Entropy}
+CRITERIA_CLF = {"gini": _criterion.Gini, "entropy": _criterion.Entropy, "lift": _criterion.Lift}
 CRITERIA_REG = {"mse": _criterion.MSE, "friedman_mse": _criterion.FriedmanMSE}
 
 DENSE_SPLITTERS = {"best": _splitter.BestSplitter,
@@ -316,6 +316,13 @@ class BaseDecisionTree(six.with_metaclass(ABCMeta, BaseEstimator,
         criterion = self.criterion
         if not isinstance(criterion, Criterion):
             if is_classification:
+                if self.criterion == 'lift' and self.n_outputs_ != 1:
+                    raise ValueError("Only support lift criterion with exactly 1 output")
+                if self.criterion == 'lift' and self.n_classes_[0] != 4:
+                    raise ValueError("Lift criterion needs exactly 4 output classes " +
+                                     "(Treat_0=0, Treat_1=1, Control_0=2, Control_1=3), " +
+                                     " given: %s" % len(self.n_classes_))
+
                 criterion = CRITERIA_CLF[self.criterion](self.n_outputs_,
                                                          self.n_classes_)
             else:
