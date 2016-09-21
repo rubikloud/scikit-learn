@@ -1604,6 +1604,14 @@ def _score(estimator, X_test, y_test, scorer):
         score = scorer(estimator, X_test)
     else:
         score = scorer(estimator, X_test, y_test)
+    # Fix for issue here (in 0.18): https://github.com/scikit-learn/scikit-learn/issues/6147
+    if hasattr(score, 'item'):
+        try:
+            # e.g. unwrap memmapped scalars
+            score = score.item()
+        except ValueError:
+            # non-scalar?
+            pass
     if not isinstance(score, numbers.Number):
         raise ValueError("scoring must return a number, got %s (%s) instead."
                          % (str(score), type(score)))
