@@ -731,9 +731,9 @@ class DecisionTreeClassifier(BaseDecisionTree, ClassifierMixin):
         """Predict uplift for X.
         Predict probabilities for positive response for treated
         and control groups.
-        
+
         Parameters
-        
+
         #LIFT_TREAT_NOTACTIVE = 0
         #LIFT_TREAT_ACTIVE = 1
         #LIFT_CONTROL_NOTACTIVE = 2
@@ -765,7 +765,7 @@ class DecisionTreeClassifier(BaseDecisionTree, ClassifierMixin):
             proba[:,1]/=target
             proba[:,2]/=control
             proba[:,3]/=control
-            
+
             return proba
         else:
             all_proba = []
@@ -773,23 +773,19 @@ class DecisionTreeClassifier(BaseDecisionTree, ClassifierMixin):
             for k in range(self.n_outputs_):
                 proba_k = proba[:, k, :self.n_classes_[k]]
 
-                target_0 = proba_k[:, 0]
-                target_1 = proba_k[:, 1]
-                control_0 = proba_k[:, 2]
-                control_1 = proba_k[:, 3]
+                target = proba_k[:, 0] + proba_k[:, 1]
+                control = proba_k[:, 2]+ proba_k[:, 3]
 
-                control = control_0 + control_1
-                target = target_0 + target_1
+                proba_k[:,0]/=target
+                proba_k[:,1]/=target
+                proba_k[:,2]/=control
+                proba_k[:,3]/=control
 
-                p_control_1 = np.where(control == 0, np.zeros_like(control), control_1 / control)
-                p_target_1 = np.where(target == 0, np.zeros_like(target), target_1 / target)
-                p_control_0 = np.where(control == 0, np.zeros_like(control), control_0 / control)
-                p_target_0 = np.where(target == 0, np.zeros_like(target), target_0 / target)
-
-                all_proba.append(p_target_1 - p_control_1)
+                all_proba.append(proba_k)
+                
             return all_proba
-        
-        
+
+
 class DecisionTreeRegressor(BaseDecisionTree, RegressorMixin):
     """A decision tree regressor.
 
