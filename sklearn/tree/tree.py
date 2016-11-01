@@ -732,12 +732,22 @@ class DecisionTreeClassifier(BaseDecisionTree, ClassifierMixin):
         Predict probabilities for positive response for treated
         and control groups.
 
-        Parameters
+        Uplift probabilities are computed as
+        p[LIFT_TREAT_NOTACTIVE]   = P(0|T)
+        p[LIFT_TREAT_ACTIVE]      = P(1|T)
+        p[LIFT_CONTROL_NOTACTIVE] = P(0|C)
+        p[LIFT_CONTROL_ACTIVE]    = P(1|C)
 
         #LIFT_TREAT_NOTACTIVE = 0
         #LIFT_TREAT_ACTIVE = 1
         #LIFT_CONTROL_NOTACTIVE = 2
         #LIFT_CONTROL_ACTIVE = 3
+
+        are the indices of the returned probabilities.
+
+        Parameters
+
+
         ----------
         X : array-like or sparse matrix of shape = [n_samples, n_features]
             The input samples. Internally, it will be converted to
@@ -759,12 +769,12 @@ class DecisionTreeClassifier(BaseDecisionTree, ClassifierMixin):
         if self.n_outputs_ == 1:
 
             target = proba[:, 0] + proba[:, 1]
-            control = proba[:, 2]+ proba[:, 3]
+            control = proba[:, 2] + proba[:, 3]
 
-            proba[:,0]/=target
-            proba[:,1]/=target
-            proba[:,2]/=control
-            proba[:,3]/=control
+            proba[:, 0] /= target
+            proba[:, 1] /= target
+            proba[:, 2] /= control
+            proba[:, 3] /= control
 
             return proba
         else:
@@ -774,17 +784,16 @@ class DecisionTreeClassifier(BaseDecisionTree, ClassifierMixin):
                 proba_k = proba[:, k, :self.n_classes_[k]]
 
                 target = proba_k[:, 0] + proba_k[:, 1]
-                control = proba_k[:, 2]+ proba_k[:, 3]
+                control = proba_k[:, 2] + proba_k[:, 3]
 
-                proba_k[:,0]/=target
-                proba_k[:,1]/=target
-                proba_k[:,2]/=control
-                proba_k[:,3]/=control
+                proba_k[:, 0] /= target
+                proba_k[:, 1] /= target
+                proba_k[:, 2] /= control
+                proba_k[:, 3] /= control
 
                 all_proba.append(proba_k)
-                
-            return all_proba
 
+            return all_proba
 
 class DecisionTreeRegressor(BaseDecisionTree, RegressorMixin):
     """A decision tree regressor.

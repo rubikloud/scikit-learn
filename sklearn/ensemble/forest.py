@@ -599,11 +599,11 @@ class ForestClassifier(six.with_metaclass(ABCMeta, BaseForest,
 
     def predict_uplift(self, X):
         """Predict uplift probabilities for X.
-        
-        uplift probabilities represent the 
-        
+
+        uplift probabilities represent the
+
         [P(ACTIVE|CONTROL),P(NON-ACTIVE|CONTROL),P(ACTIVE|TREAT),P(NON-ACTIVE|TREAT)]
-        
+
         The predicted uplift probabilities of an input sample is computed as
         the mean predicted uplift probabilities of the trees in the forest. The
         uplift probability of a single tree is the fraction of samples of the same
