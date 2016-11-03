@@ -599,7 +599,6 @@ class ForestClassifier(six.with_metaclass(ABCMeta, BaseForest,
 
     def predict_uplift(self, X):
         """Predict uplift probabilities for X.
-
         uplift probabilities represent the
 
         [P(ACTIVE|CONTROL),P(NON-ACTIVE|CONTROL),P(ACTIVE|TREAT),P(NON-ACTIVE|TREAT)]
@@ -630,20 +629,18 @@ class ForestClassifier(six.with_metaclass(ABCMeta, BaseForest,
         n_jobs, _, _ = _partition_estimators(self.n_estimators, self.n_jobs)
 
         # Parallel loop
-
         all_proba = Parallel(n_jobs=n_jobs, verbose=self.verbose,
                              backend="threading")(
             delayed(_parallel_helper)(e, 'predict_uplift', X,
                                       check_input=False)
             for e in self.estimators_)
-        # Reduce
 
+        # Reduce
         proba = all_proba[0]
 
         if self.n_outputs_ == 1:
             for j in range(1, len(all_proba)):
                 proba += all_proba[j]
-
             proba /= len(self.estimators_)
 
         else:

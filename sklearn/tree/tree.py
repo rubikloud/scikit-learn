@@ -765,7 +765,8 @@ class DecisionTreeClassifier(BaseDecisionTree, ClassifierMixin):
         """
         X = self._validate_X_predict(X, check_input)
         proba = self.tree_.predict(X)
-
+        assert self.n_classes_ == 4
+        
         if self.n_outputs_ == 1:
 
             target = proba[:, 0] + proba[:, 1]
