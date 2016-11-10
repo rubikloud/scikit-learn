@@ -139,7 +139,7 @@ def check_boston_criterion(name, criterion):
     # Check consistency on dataset boston house prices.
     ForestRegressor = FOREST_REGRESSORS[name]
 
-    clf = ForestRegressor(n_estimators=5, criterion=criterion, 
+    clf = ForestRegressor(n_estimators=5, criterion=criterion,
                           random_state=1)
     clf.fit(boston.data, boston.target)
     score = clf.score(boston.data, boston.target)
@@ -1101,3 +1101,35 @@ def test_dtype_convert(n_classes=15):
     result = classifier.fit(X, y).predict(X)
     assert_array_equal(classifier.classes_, y)
     assert_array_equal(result, y)
+
+def test_uplift_random_forest():
+    y_est = np.array([[ 0.74      ,  0.26      ,  0.66035714,  0.33964286],
+                   [ 0.32333333,  0.67666667,  0.57702381,  0.42297619],
+                   [ 0.62333333,  0.37666667,  0.71035714,  0.28964286],
+                   [ 0.72333333,  0.27666667,  0.61035714,  0.38964286],
+                   [ 0.67333333,  0.32666667,  0.71035714,  0.28964286],
+                   [ 0.27333333,  0.72666667,  0.54369048,  0.45630952],
+                   [ 0.69      ,  0.31      ,  0.76035714,  0.23964286],
+                   [ 0.27333333,  0.72666667,  0.54369048,  0.45630952],
+                   [ 0.67333333,  0.32666667,  0.71035714,  0.28964286],
+                   [ 0.34      ,  0.66      ,  0.59369048,  0.40630952]])
+    data = np.array([[0, 0, 1, 0, 0, 1, 0, 0],
+                     [1, 0, 1, 1, 1, 0, 1, 1],
+                     [1, 0, 1, 1, 0, 1, 1, 2],
+                     [0, 1, 1, 1, 0, 1, 0, 3],
+                     [1, 1, 0, 1, 0, 1, 1, 0],
+                     [1, 1, 0, 1, 1, 1, 1, 1],
+                     [1, 0, 1, 0, 0, 1, 0, 2],
+                     [1, 1, 1, 1, 1, 1, 1, 3],
+                     [1, 1, 1, 1, 0, 1, 1, 2],
+                     [1, 1, 1, 0, 1, 1, 1, 2]])
+
+    X, y = np.array(data[:, :7], dtype=np.bool), data[:, 7]
+    forest = ensemble.RandomForestClassifier(criterion='lift', n_estimators=10,
+                                             n_jobs=-1, random_state=0)
+
+    forest.fit(X, y)
+
+    y_pred = forest.predict_uplift(X)
+    assert y_pred.shape == (10,4)
+    assert_array_equal(y_pred,y_est)
