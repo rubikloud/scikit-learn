@@ -1125,11 +1125,8 @@ def test_uplift_random_forest():
                      [1, 1, 1, 0, 1, 1, 1, 2]])
 
     X, y = np.array(data[:, :7], dtype=np.bool), data[:, 7]
-    forest = ensemble.RandomForestClassifier(criterion='lift', n_estimators=10,
-                                             n_jobs=-1, random_state=0)
-
+    forest = RandomForestClassifier(criterion='lift', n_estimators=10, n_jobs=-1, random_state=0)
     forest.fit(X, y)
-
     y_pred = forest.predict_uplift(X)
     assert y_pred.shape == (10,4)
-    assert_array_equal(y_pred,y_est)
+    assert_array_almost_equal(y_pred,y_est)
