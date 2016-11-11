@@ -727,6 +727,74 @@ class DecisionTreeClassifier(BaseDecisionTree, ClassifierMixin):
 
             return proba
 
+    def predict_uplift(self, X, check_input=True):
+        """Predict uplift for X.
+        Predict probabilities for positive response for treated
+        and control groups.
+
+        Uplift probabilities are computed as
+        p[LIFT_TREAT_NOTACTIVE]   = P(0|T)
+        p[LIFT_TREAT_ACTIVE]      = P(1|T)
+        p[LIFT_CONTROL_NOTACTIVE] = P(0|C)
+        p[LIFT_CONTROL_ACTIVE]    = P(1|C)
+
+        #LIFT_TREAT_NOTACTIVE = 0
+        #LIFT_TREAT_ACTIVE = 1
+        #LIFT_CONTROL_NOTACTIVE = 2
+        #LIFT_CONTROL_ACTIVE = 3
+
+        are the indices of the returned probabilities.
+
+        Parameters
+
+
+        ----------
+        X : array-like or sparse matrix of shape = [n_samples, n_features]
+            The input samples. Internally, it will be converted to
+            ``dtype=np.float32`` and if a sparse matrix is provided
+            to a sparse ``csr_matrix``.
+        check_input : boolean, (default=True)
+            Allow to bypass several input checking.
+            Don't use this parameter unless you know what you do.
+        Returns
+        -------
+        p : array of shape = [n_samples, n_classes], or a list of n_outputs
+            such arrays if n_outputs > 1.
+            The uplift probabilities of the input samples. The order of the
+            classes corresponds to that in the attribute `classes_`.
+        """
+        X = self._validate_X_predict(X, check_input)
+        proba = self.tree_.predict(X)
+        assert self.n_classes_ == 4
+        
+        if self.n_outputs_ == 1:
+
+            target = proba[:, 0] + proba[:, 1]
+            control = proba[:, 2] + proba[:, 3]
+
+            proba[:, 0] /= target
+            proba[:, 1] /= target
+            proba[:, 2] /= control
+            proba[:, 3] /= control
+
+            return proba
+        else:
+            all_proba = []
+
+            for k in range(self.n_outputs_):
+                proba_k = proba[:, k, :self.n_classes_[k]]
+
+                target = proba_k[:, 0] + proba_k[:, 1]
+                control = proba_k[:, 2] + proba_k[:, 3]
+
+                proba_k[:, 0] /= target
+                proba_k[:, 1] /= target
+                proba_k[:, 2] /= control
+                proba_k[:, 3] /= control
+
+                all_proba.append(proba_k)
+
+            return all_proba
 
 class DecisionTreeRegressor(BaseDecisionTree, RegressorMixin):
     """A decision tree regressor.
